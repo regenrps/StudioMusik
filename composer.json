@@ -9,13 +9,11 @@
     "license": "MIT",
     "require": {
         "php": "^8.1",
+        "blade-ui-kit/blade-heroicons": "^2.3",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
-        "laravel/tinker": "^2.8",
-        "midtrans/midtrans-php": "^2.5",
-        "realrashid/sweet-alert": "^7.1",
-        "yajra/laravel-datatables": "^10.0"
+        "laravel/tinker": "^2.8"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -33,7 +31,7 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-            "app/Helpers/formatDate.php"
+            "app/Support/helpers.php"
         ]
     },
     "autoload-dev": {

@@ -36,11 +36,22 @@ return [
             'throw' => false,
         ],
 
+        // Berkas publik (foto ruangan, gambar layanan, tutorial). Disimpan langsung
+        // di public/storage agar tidak bergantung pada symlink di shared hosting.
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
+            'root' => public_path('storage'),
             'url' => env('APP_URL').'/storage',
             'visibility' => 'public',
+            'throw' => false,
+        ],
+
+        // Berkas sensitif (KTP/KTM jaminan, foto kondisi, lampiran & hasil jasa,
+        // foto laporan). Hanya dapat diakses lewat route BerkasController.
+        'private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'visibility' => 'private',
             'throw' => false,
         ],
 
@@ -70,7 +81,7 @@ return [
     */
 
     'links' => [
-        public_path('storage') => storage_path('app/public'),
+        // Tidak diperlukan: disk `public` langsung menulis ke public/storage.
     ],
 
 ];

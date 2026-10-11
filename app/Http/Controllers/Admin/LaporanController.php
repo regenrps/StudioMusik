@@ -2,167 +2,172 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Role;
+use App\Enums\StatusLaporan;
 use App\Http\Controllers\Controller;
-use App\Models\LaporanModel;
+use App\Models\Laporan;
+use App\Models\LogAktivitas;
+use App\Models\Peminjaman;
+use App\Models\Ruangan;
+use App\Notifications\LaporanBaru;
+use App\Support\Berkas;
+use App\Support\Notifier;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use Yajra\DataTables\Facades\DataTables;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
+/**
+ * Laporan masalah/insiden studio. Dapat dibuat oleh admin dan K3L,
+ * opsional dikaitkan dengan peminjaman tertentu.
+ */
 class LaporanController extends Controller
 {
-    public function index()
+    public function index(Request $request): View
     {
-        $laporan = DB::table('laporan')
-            ->orderBy("id_laporan", "DESC")
-            ->get();
+        $status = $request->query('status');
+        $jenis = $request->query('jenis');
 
-        return view('admin.laporan.laporan_masalah');
+        $laporan = Laporan::query()->with('pelapor:id_user,username', 'ruangan:id_ruangan,nama_ruangan', 'peminjaman:id_pesanan_jadwal_studio,kode')
+            ->when(in_array($status, array_column(StatusLaporan::cases(), 'value'), true), fn ($q) => $q->where('status', $status))
+            ->when(in_array($jenis, Laporan::JENIS, true), fn ($q) => $q->where('jenis_laporan', $jenis))
+            ->orderByRaw("FIELD(status, 'open', 'in_progress', 'resolved')")
+            ->latest('tgl_laporan')->latest('id_laporan')
+            ->paginate(15)->withQueryString();
+
+        return view('admin.laporan.index', [
+            'laporan' => $laporan,
+            'filter' => compact('status', 'jenis'),
+            'hitung' => Laporan::query()->selectRaw('status, COUNT(*) as jumlah')->groupBy('status')->pluck('jumlah', 'status'),
+        ]);
     }
 
-    public function data_index()
+    public function create(Request $request): View
     {
-        $laporans = LaporanModel::all();
-        $data = datatables()->of($laporans)->addIndexColumn()->addColumn('gambar', function ($row) {
-            $img_html = '';
-            $images = json_decode($row->gambar, true);
-            if (is_array($images)) {
-                foreach ($images as $img) {
-                    if (is_string($img)) {
-                        $img_html .= '<a target="_blank" href="' . asset($img) . '"><img src="' . asset($img) . '" class="img-thumbnail" style="max-width: 50px; max-height: 50px;"></a> ';
-                    }
-                }
-            }
-            return $img_html;
-        })->rawColumns(['gambar'])->make(true);
+        $peminjaman = $request->query('peminjaman')
+            ? Peminjaman::query()->with('ruangan')->where('kode', $request->query('peminjaman'))->first()
+            : null;
 
-        return $data;
+        return view('admin.laporan.form', [
+            'laporan' => new Laporan([
+                'tgl_laporan' => today(),
+                'id_ruangan' => $peminjaman?->id_ruangan,
+                'id_pesanan_jadwal_studio' => $peminjaman?->getKey(),
+                'status' => StatusLaporan::Baru,
+            ]),
+            'ruangan' => Ruangan::query()->orderBy('nama_ruangan')->get(['id_ruangan', 'nama_ruangan']),
+            'peminjaman' => $peminjaman,
+        ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $validate = Validator::make($request->all(), [
-            "jenis_laporan" => "required",
-            "tgl_laporan" => "required",
-            "gambar.*" => "required|image|mimes:png,jpg,jpeg|max:1024",
-            "keterangan" => "required",
+        $data = $this->validasi($request);
+
+        $gambar = [];
+        foreach ((array) $request->file('gambar', []) as $file) {
+            $gambar[] = Berkas::simpan($file, 'laporan');
+        }
+
+        $laporan = Laporan::create([
+            ...collect($data)->except(['gambar', 'kode_peminjaman'])->all(),
+            'id_user' => $request->user()->getKey(),
+            'id_pesanan_jadwal_studio' => $this->idPeminjaman($data['kode_peminjaman'] ?? null),
+            'status' => StatusLaporan::Baru,
+            'gambar' => $gambar,
         ]);
 
-        if ($validate->fails()) {
-            return response()->json([
-                "msg" => $validate->errors()
-            ], 422);
-        }
+        LogAktivitas::catat($laporan, 'dibuat', 'Membuat laporan '.$laporan->jenis_laporan);
+        Notifier::staf(new LaporanBaru($laporan), [Role::Admin, Role::K3L]);
 
-        $imagePaths = [];
-        if ($request->hasFile('gambar')) {
-            foreach ($request->file('gambar') as $image) {
-                $name =  uniqid() . '-Laporan-' . $request->jenis_laporan . "." . $image->getClientOriginalExtension();
-                $image->move(public_path('/storage/img_upload/laporan'), $name);
-                $imagePaths[] = '/storage/img_upload/laporan/' . $name;
+        return redirect()->route('admin.laporan.show', $laporan)
+            ->with('toast', ['type' => 'success', 'message' => 'Laporan tersimpan dan diteruskan ke admin.']);
+    }
+
+    public function show(Laporan $laporan): View
+    {
+        $laporan->load('pelapor', 'ruangan', 'peminjaman.user', 'log.user:id_user,username,user_role');
+
+        return view('admin.laporan.show', ['laporan' => $laporan]);
+    }
+
+    public function edit(Laporan $laporan): View
+    {
+        return view('admin.laporan.form', [
+            'laporan' => $laporan->load('peminjaman'),
+            'ruangan' => Ruangan::query()->orderBy('nama_ruangan')->get(['id_ruangan', 'nama_ruangan']),
+            'peminjaman' => $laporan->peminjaman,
+        ]);
+    }
+
+    public function update(Request $request, Laporan $laporan): RedirectResponse
+    {
+        $data = $this->validasi($request, $laporan);
+        $statusLama = $laporan->status;
+
+        $gambar = $laporan->daftarGambar();
+        foreach ((array) $request->input('hapus_gambar', []) as $indeks) {
+            if (isset($gambar[(int) $indeks])) {
+                Berkas::hapus($gambar[(int) $indeks]);
+                unset($gambar[(int) $indeks]);
             }
         }
+        foreach ((array) $request->file('gambar', []) as $file) {
+            $gambar[] = Berkas::simpan($file, 'laporan');
+        }
 
-        LaporanModel::create([
-            'tgl_laporan' => $request->tgl_laporan,
-            'jenis_laporan' => $request->jenis_laporan,
-            'keterangan' => $request->keterangan,
-            'gambar' => json_encode($imagePaths, JSON_UNESCAPED_SLASHES)
+        $status = StatusLaporan::from($data['status'] ?? $laporan->status->value);
+        $laporan->update([
+            ...collect($data)->except(['gambar', 'kode_peminjaman', 'status'])->all(),
+            'id_pesanan_jadwal_studio' => $this->idPeminjaman($data['kode_peminjaman'] ?? null),
+            'status' => $status,
+            'gambar' => array_values($gambar),
+            'selesai_at' => $status === StatusLaporan::Selesai ? ($laporan->selesai_at ?? now()) : null,
         ]);
 
-        return response()->json([
-            "msg" => "Jasa musik berhasil disimpan",
-        ], 200);
+        LogAktivitas::catat($laporan, 'diubah', $statusLama !== $status
+            ? 'Mengubah status laporan menjadi '.$status->label()
+            : 'Memperbarui laporan');
+
+        return redirect()->route('admin.laporan.show', $laporan)
+            ->with('toast', ['type' => 'success', 'message' => 'Laporan diperbarui.']);
     }
 
-    public function update(Request $request, string $id_laporan)
+    public function destroy(Laporan $laporan): RedirectResponse
     {
-        $validate = Validator::make($request->all(), [
-            "jenis_laporan" => "required",
-            "tgl_laporan" => "required",
-            "gambar.*" => "nullable|image|mimes:png,jpg,jpeg|max:1024",
-            "keterangan" => "required",
-        ]);
+        Gate::authorize('admin');
 
-        if ($validate->fails()) {
-            return response()->json([
-                "msg" => $validate->errors()
-            ], 422);
+        foreach ($laporan->daftarGambar() as $path) {
+            Berkas::hapus($path);
         }
+        LogAktivitas::catat(null, 'dihapus', 'Menghapus laporan #'.$laporan->getKey().' ('.$laporan->jenis_laporan.')');
+        $laporan->delete();
 
-        $data = LaporanModel::findOrFail($id_laporan);
-
-        if ($data) {
-            // Menghapus dan mengganti gambar jika ada file gambar baru yang diunggah
-            if ($request->hasFile('gambar')) {
-                // Hapus semua gambar lama
-                foreach (json_decode($data->gambar) as $old_gambar) {
-                    $path = public_path($old_gambar);
-                    if (File::exists($path)) {
-                        File::delete($path);
-                    }
-                }
-
-                // Simpan gambar baru
-                $gambar_baru = [];
-                foreach ($request->file('gambar') as $img) {
-                    $extension = $img->getClientOriginalExtension();
-                    $nama_img = uniqid() . "-Laporan-" . $request->jenis_laporan . "." . $extension;
-                    $img->move(public_path('/storage/img_upload/laporan/'), $nama_img);
-                    $gambar_baru[] = '/storage/img_upload/laporan/' . $nama_img;
-                }
-                $data->gambar = json_encode($gambar_baru, JSON_UNESCAPED_SLASHES);
-            }
-
-            $data->jenis_laporan = $request->input('jenis_laporan');
-            $data->tgl_laporan = $request->input('tgl_laporan');
-            $data->keterangan = $request->input('keterangan');
-
-            $data->save();
-
-            return response()->json([
-                'msg' => 'Data laporan berhasil diperbarui',
-            ], 200);
-        }
-
-        return response()->json([
-            'msg' => 'Data laporan tidak ditemukan',
-        ], 404);
+        return redirect()->route('admin.laporan.index')->with('toast', ['type' => 'success', 'message' => 'Laporan dihapus.']);
     }
 
-
-    public function show(string $id_laporan)
+    /** @return array<string, mixed> */
+    private function validasi(Request $request, ?Laporan $laporan = null): array
     {
-        $data = DB::table('laporan')
-            ->where("id_laporan", $id_laporan)
-            ->first();
+        $upload = config('studio.upload');
 
-        if (empty($data)) {
-            return response()->json([
-                "msg" => "Data tidak ditemukan...",
-            ], 404);
-        } else {
-            return response()->json($data);
-        }
+        return $request->validate([
+            'tgl_laporan' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
+            'jenis_laporan' => ['required', Rule::in(Laporan::JENIS)],
+            'id_ruangan' => ['nullable', 'exists:data_ruangan,id_ruangan'],
+            'kode_peminjaman' => ['nullable', 'string', 'exists:pesanan_jadwal_studio,kode'],
+            'keterangan' => ['required', 'string', 'min:10', 'max:3000'],
+            'tindak_lanjut' => ['nullable', 'string', 'max:3000'],
+            'status' => [$laporan ? 'required' : 'nullable', Rule::enum(StatusLaporan::class)],
+            'gambar' => ['nullable', 'array', 'max:6'],
+            'gambar.*' => ['image', 'mimes:'.implode(',', $upload['gambar_mimes']), 'max:'.$upload['gambar_maks_kb']],
+            'hapus_gambar' => ['nullable', 'array'],
+        ], ['kode_peminjaman.exists' => 'Kode peminjaman tidak ditemukan.'], ['kode_peminjaman' => 'kode peminjaman']);
     }
 
-    public function destroy(string $id_laporan)
+    private function idPeminjaman(?string $kode): ?int
     {
-        $data = LaporanModel::findOrFail($id_laporan);
-
-        $images = json_decode($data->gambar, true);
-        if (is_array($images)) {
-            foreach ($images as $img) {
-                if (file_exists(public_path($img))) {
-                    unlink(public_path($img));
-                }
-            }
-        }
-
-        $data->delete();
-
-        return response()->json(['msg' => 'Data berhasil dihapus'], 200);
+        return $kode ? Peminjaman::query()->where('kode', $kode)->value('id_pesanan_jadwal_studio') : null;
     }
 }

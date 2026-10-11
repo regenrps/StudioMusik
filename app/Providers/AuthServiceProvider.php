@@ -2,40 +2,35 @@
 
 namespace App\Providers;
 
-// use Illuminate\Support\Facades\Gate;
-
+use App\Models\Peminjaman;
+use App\Models\PesananJasa;
 use App\Models\User;
+use App\Policies\PeminjamanPolicy;
+use App\Policies\PesananJasaPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
 class AuthServiceProvider extends ServiceProvider
 {
     /**
-     * The model to policy mappings for the application.
-     *
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        //
+        Peminjaman::class => PeminjamanPolicy::class,
+        PesananJasa::class => PesananJasaPolicy::class,
     ];
 
-    /**
-     * Register any authentication / authorization services.
-     */
     public function boot(): void
     {
         $this->registerPolicies();
 
-        Gate::define('isAdmin', function (User $user) {
-            return $user->user_role === 'admin';
-        });
+        // Admin: akses penuh ke pengelolaan data & pengaturan.
+        Gate::define('admin', fn (User $user) => $user->isAdmin());
 
-        Gate::define('isK3l', function (User $user) {
-            return $user->user_role === 'k3l';
-        });
+        // Staf (admin & K3L): memantau jadwal, kondisi ruangan, dan laporan.
+        Gate::define('staf', fn (User $user) => $user->isStaff());
 
-        Gate::define('isUser', function (User $user) {
-            return $user->user_role === 'user';
-        });
+        // Peminjam (civitas).
+        Gate::define('peminjam', fn (User $user) => ! $user->isStaff());
     }
 }

@@ -1,175 +1,154 @@
 <?php
 
-use App\Http\Controllers\Admin\DataRuanganController;
-use App\Http\Controllers\Admin\LaporanController;
-use App\Http\Controllers\Admin\MasterJasaMusikController;
-use App\Http\Controllers\Admin\PaketJasaMusikController;
-use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\PesananJadwalStudioController;
-use App\Http\Controllers\PesananJasaMusikController;
-use App\Http\Controllers\TutorialPenggunaanAlatController;
-use App\Http\Controllers\User\DataRuanganUserController;
-use App\Http\Controllers\User\DisplayJasaMusikController;
-use App\Http\Controllers\User\UserJadwalStudioController;
-use App\Http\Controllers\User\UserPesananJasaMusikController;
-use App\Http\Controllers\MailController;
-use App\Http\Controllers\HomepageController;
+use App\Http\Controllers\Admin;
+use App\Http\Controllers\Akun;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\BerandaController;
+use App\Http\Controllers\BerkasController;
+use App\Http\Controllers\JadwalPublikController;
+use App\Http\Controllers\KatalogController;
+use App\Http\Controllers\KetersediaanController;
+use App\Http\Controllers\NotifikasiController;
+use App\Http\Controllers\ProfilController;
+use App\Http\Controllers\TutorialController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| Publik
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
 */
-//  Homepage
-Route::get('/', [HomepageController::class, 'index'])->name('homepage');
+Route::get('/', [BerandaController::class, 'index'])->name('beranda');
+Route::get('/jadwal', [JadwalPublikController::class, 'index'])->name('jadwal');
+Route::get('/jadwal/data', [JadwalPublikController::class, 'data'])->name('jadwal.data');
+Route::get('/ruangan/{ruangan}', [KatalogController::class, 'ruangan'])->name('ruangan.show');
+Route::get('/layanan', [KatalogController::class, 'layanan'])->name('layanan.index');
+Route::get('/layanan/{jasa}', [KatalogController::class, 'layananShow'])->name('layanan.show');
+Route::get('/tutorial', [TutorialController::class, 'index'])->name('tutorial.index');
+Route::get('/tutorial/{tutorial}', [TutorialController::class, 'show'])->name('tutorial.show');
 
-Route::get('/login', [AuthController::class, 'index'])->name('login');
-Route::post('/authenticate', [AuthController::class, 'login']);
-Route::post('/register', [AuthController::class, 'register']);
-// Route::post("/register", [AuthController::class, 'register']);
-
-Route::get('/forbidden_403', function () {
-    return view('errors.forbidden_403');
+Route::prefix('ketersediaan/{ruangan}')->name('ketersediaan.')->middleware('throttle:120,1')->group(function () {
+    Route::get('/bulan', [KetersediaanController::class, 'bulan'])->name('bulan');
+    Route::get('/hari', [KetersediaanController::class, 'hari'])->name('hari');
 });
 
-Route::get('/system_error_500', function () {
-    return view('errors.system_error_500');
+/*
+|--------------------------------------------------------------------------
+| Autentikasi
+|--------------------------------------------------------------------------
+*/
+Route::middleware('guest')->group(function () {
+    Route::get('/masuk', [LoginController::class, 'create'])->name('login');
+    Route::post('/masuk', [LoginController::class, 'store'])->middleware('throttle:auth');
+    Route::get('/daftar', [RegisterController::class, 'create'])->name('register');
+    Route::post('/daftar', [RegisterController::class, 'store'])->middleware('throttle:auth');
+    Route::get('/lupa-password', [PasswordController::class, 'request'])->name('password.request');
+    Route::post('/lupa-password', [PasswordController::class, 'email'])->middleware('throttle:auth')->name('password.email');
+    Route::get('/reset-password/{token}', [PasswordController::class, 'reset'])->name('password.reset');
+    Route::post('/reset-password', [PasswordController::class, 'update'])->middleware('throttle:auth')->name('password.update');
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get("/logout", [AuthController::class, 'logout']);
-    Route::get("/profile_user", [AuthController::class, 'profile_user']);
-    Route::post("/edit_profile/{id}", [AuthController::class, 'edit_profile']);
+    Route::post('/keluar', [LoginController::class, 'destroy'])->name('logout');
 
-    Route::middleware('isAdmin')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'dashboard']);
+    // Arahkan ke dasbor sesuai peran.
+    Route::get('/dashboard', fn () => redirect(auth()->user()->homeRoute()))->name('dashboard');
 
-        // MASTER JASA MUSIK
-        Route::get('/master_jasa_musik', [MasterJasaMusikController::class, 'index']);
-        Route::get('/fetch_master_jasa_musik', [MasterJasaMusikController::class, 'data_index']);
-        Route::post('/add_master_jasa_musik', [MasterJasaMusikController::class, 'store']);
-        Route::post('/showById_master_jasa_musik/{id}', [MasterJasaMusikController::class, 'show']);
-        Route::post('/edit_master_jasa_musik/{id}', [MasterJasaMusikController::class, 'update']);
-        Route::delete('/hapus_master_jasa_musik/{id}', [MasterJasaMusikController::class, 'destroy']);
+    Route::get('/profil', [ProfilController::class, 'edit'])->name('profil.edit');
+    Route::put('/profil', [ProfilController::class, 'update'])->name('profil.update');
+    Route::put('/profil/password', [ProfilController::class, 'password'])->name('profil.password');
 
-        // DATA RUANGAN STUDIO
-        Route::get('/data_ruangan', [DataRuanganController::class, 'index']);
-        Route::get('/fetch_data_ruangan', [DataRuanganController::class, 'data_index']);
-        Route::post('/add_data_ruangan', [DataRuanganController::class, 'store']);
-        Route::post('/showById_data_ruangan/{id}', [DataRuanganController::class, 'show']);
-        Route::post('/edit_data_ruangan/{id}', [DataRuanganController::class, 'update']);
-        Route::delete('/hapus_data_ruangan/{id}', [DataRuanganController::class, 'destroy']);
+    Route::get('/notifikasi', [NotifikasiController::class, 'index'])->name('notifikasi.index');
+    Route::get('/notifikasi/terbaru', [NotifikasiController::class, 'terbaru'])->name('notifikasi.terbaru');
+    Route::post('/notifikasi/baca-semua', [NotifikasiController::class, 'bacaSemua'])->name('notifikasi.baca-semua');
+    Route::get('/notifikasi/{id}', [NotifikasiController::class, 'buka'])->name('notifikasi.buka');
 
-        // PESANAN JADWAL STUDIO
-        Route::get('/data_peminjam_ruangan', [PesananJadwalStudioController::class, 'index']);
-        Route::get('/fetch_pesanan_jadwal_studio', [PesananJadwalStudioController::class, 'data_index']);
-        Route::post('/status_pesanan_jadwal_studio/{id}', [PesananJadwalStudioController::class, 'status_pesanan_jadwal_studio']);
-        // Route::post("/harga_sewa_studio", [PesananJadwalStudioController::class, 'harga_sewa_studio']);
-        Route::get('/lihat_harga_sewa_studio', [PesananJadwalStudioController::class, 'lihat_harga_studio']);
-
-        // PESANAN JASA MUSIK
-        Route::get('/pesanan_jasa_musik', [PesananJasaMusikController::class, 'index']);
-        Route::get('/fetch_pesanan_jasa_musik', [PesananJasaMusikController::class, 'data_index']);
-        Route::post('/status_pesanan_jasa_musik/{id}', [PesananJasaMusikController::class, 'status_pesanan_jasa_musik']);
-        Route::post('/selesaikan_produksi_pesanan_jasa_musik/{id}', [PesananJasaMusikController::class, 'selesaikan_produksi_pesanan_jasa_musik']);
-
-        // LAPORAN
-        Route::get('/laporan_admin', [LaporanController::class, 'index']);
-        Route::get('/fetch_laporan_masalah', [LaporanController::class, 'data_index']);
-        Route::post('/add_laporan_masalah', [LaporanController::class, 'store']);
-        Route::post('/edit_laporan_masalah/{id}', [LaporanController::class, 'update']);
-        Route::post('/show_byId_laporan_masalah/{id}', [LaporanController::class, 'show']);
-        Route::delete('/hapus_laporan_masalah/{id}', [LaporanController::class, 'destroy']);
-
-        // PAKET HARGA JASA MUSIK
-        Route::get('/paket_harga_jasa_musik/{id}', [PaketJasaMusikController::class, 'index']);
-        Route::get('/fetch_paket_harga_jasa_musik', [PaketJasaMusikController::class, 'data_index']);
-        Route::post('/add_paket_harga', [PaketJasaMusikController::class, 'store']);
-        Route::delete('/hapus_paket_harga/{id}', [PaketJasaMusikController::class, 'destroy']);
-        Route::post('/showByID_paket_harga/{id}', [PaketJasaMusikController::class, 'show']);
-        Route::put('/edit_paket_harga/{id}', [PaketJasaMusikController::class, 'update']);
-
-        // TUTORIAL PENGGUNAAN ALAT
-        Route::get('/data_tutorial_alat', [TutorialPenggunaanAlatController::class, 'index_adm']);
-        Route::get('/fetch_tutorial_alat', [TutorialPenggunaanAlatController::class, 'data_index']);
-        Route::post('/add_tutorial_alat', [TutorialPenggunaanAlatController::class, 'store']);
-        Route::post('/edit_tutorial_alat/{id}', [TutorialPenggunaanAlatController::class, 'update']);
-        Route::post('/show_byId_tutorial_alat/{id}', [TutorialPenggunaanAlatController::class, 'show']);
-        Route::delete('/hapus_tutorial_alat/{id}', [TutorialPenggunaanAlatController::class, 'destroy']);
+    // Berkas privat (diperiksa lewat policy).
+    Route::prefix('berkas')->name('berkas.')->group(function () {
+        Route::get('/peminjaman/{peminjaman}/{jenis}', [BerkasController::class, 'peminjaman'])
+            ->whereIn('jenis', ['jaminan', 'awal', 'akhir'])->name('peminjaman');
+        Route::get('/jasa/{pesanan}/lampiran/{informasi}', [BerkasController::class, 'lampiranJasa'])->name('jasa.lampiran');
+        Route::get('/jasa/{pesanan}/hasil', [BerkasController::class, 'hasilJasa'])->name('jasa.hasil');
+        Route::get('/laporan/{laporan}/{indeks}', [BerkasController::class, 'laporan'])->whereNumber('indeks')->name('laporan');
     });
+});
 
-    Route::middleware('isUser')->group(function () {
-        Route::get('/dashboard_user', [DashboardController::class, 'dashboard_user']);
+/*
+|--------------------------------------------------------------------------
+| Peminjam (civitas)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:user'])->prefix('akun')->name('akun.')->group(function () {
+    Route::get('/', [Akun\DashboardController::class, 'index'])->name('dashboard');
 
-        // DATA RUANGAN
-        Route::get('/data_ruangan_studio', [DataRuanganUserController::class, 'index']);
-        Route::get('/user_review_ruangan/{id}', [DataRuanganUserController::class, 'user_review_ruangan']);
+    Route::get('/peminjaman', [Akun\PeminjamanController::class, 'index'])->name('peminjaman.index');
+    Route::get('/peminjaman/baru', [Akun\PeminjamanController::class, 'create'])->name('peminjaman.create');
+    Route::post('/peminjaman', [Akun\PeminjamanController::class, 'store'])->middleware('throttle:aksi')->name('peminjaman.store');
+    Route::get('/peminjaman/{peminjaman}', [Akun\PeminjamanController::class, 'show'])->name('peminjaman.show');
+    Route::post('/peminjaman/{peminjaman}/batal', [Akun\PeminjamanController::class, 'batal'])->name('peminjaman.batal');
+    Route::post('/peminjaman/{peminjaman}/checkin', [Akun\PeminjamanController::class, 'checkIn'])->middleware('throttle:aksi')->name('peminjaman.checkin');
+    Route::post('/peminjaman/{peminjaman}/checkout', [Akun\PeminjamanController::class, 'checkOut'])->middleware('throttle:aksi')->name('peminjaman.checkout');
+    Route::post('/peminjaman/{peminjaman}/ulasan', [Akun\PeminjamanController::class, 'ulasan'])->name('peminjaman.ulasan');
 
-        // JADWAL STUDIO SAYA
-        Route::get("/jadwal_studio_saya", [UserJadwalStudioController::class, 'index']);
-        Route::get("/fetch_jadwal_studio_saya", [UserJadwalStudioController::class, 'data_index']);
+    Route::get('/jasa', [Akun\PesananJasaController::class, 'index'])->name('jasa.index');
+    Route::get('/jasa/pesan/{jasa}', [Akun\PesananJasaController::class, 'create'])->name('jasa.create');
+    Route::post('/jasa/pesan/{jasa}', [Akun\PesananJasaController::class, 'store'])->middleware('throttle:aksi')->name('jasa.store');
+    Route::get('/jasa/{pesanan}', [Akun\PesananJasaController::class, 'show'])->name('jasa.show');
+    Route::post('/jasa/{pesanan}/batal', [Akun\PesananJasaController::class, 'batal'])->name('jasa.batal');
+    Route::post('/jasa/{pesanan}/ulasan', [Akun\PesananJasaController::class, 'ulasan'])->name('jasa.ulasan');
+});
 
-        // PESANAN JASA MUSIK SAYA
-        Route::get('/pesanan_jasa_musik_saya', [UserPesananJasaMusikController::class, 'index']);
-        Route::get('/riwayat_pesanan_jasa_musik', [UserPesananJasaMusikController::class, 'riwayat_pesanan_jasa_musik']);
-        Route::get('/riwayat_pesanan_data', [UserPesananJasaMusikController::class, 'riwayat_pesanan_data']);
-        Route::get('/fetch_jasa_musik_saya', [UserPesananJasaMusikController::class, 'data_index']);
-        Route::post('/beri_rating_jasa/{id}', [UserPesananJasaMusikController::class, 'beri_rating_jasa']);
-        Route::get('/list_data_jasa_musik', [UserPesananJasaMusikController::class, 'list_data_jasa_musik']);
-        Route::get('/informasi_jasa_musik/{id}', [UserPesananJasaMusikController::class, 'informasi_jasa_musik']);
+/*
+|--------------------------------------------------------------------------
+| Staf: Admin & K3L
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role:admin,k3l'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', [Admin\DashboardController::class, 'index'])->name('dashboard');
 
-        // DISLAY JASA MUSIK
-        Route::get('/pembuatan_jasa_musik/{id}', [DisplayJasaMusikController::class, 'pembuatan_jasa_musik']);
+    // Peminjaman: K3L dapat melihat, hanya admin yang memproses.
+    Route::get('/peminjaman', [Admin\PeminjamanController::class, 'index'])->name('peminjaman.index');
+    Route::get('/peminjaman/kalender', [Admin\PeminjamanController::class, 'kalender'])->name('peminjaman.kalender');
+    Route::get('/peminjaman/kalender/data', [Admin\PeminjamanController::class, 'kalenderData'])->name('peminjaman.kalender.data');
+    Route::get('/peminjaman/ekspor', [Admin\PeminjamanController::class, 'ekspor'])->name('peminjaman.ekspor');
+    Route::get('/peminjaman/{peminjaman}', [Admin\PeminjamanController::class, 'show'])->name('peminjaman.show');
+
+    // Laporan masalah: admin & K3L.
+    Route::resource('laporan', Admin\LaporanController::class)->parameters(['laporan' => 'laporan']);
+
+    Route::middleware('role:admin')->group(function () {
+        Route::post('/peminjaman/{peminjaman}/setujui', [Admin\PeminjamanController::class, 'setujui'])->name('peminjaman.setujui');
+        Route::post('/peminjaman/{peminjaman}/tolak', [Admin\PeminjamanController::class, 'tolak'])->name('peminjaman.tolak');
+        Route::post('/peminjaman/{peminjaman}/batal', [Admin\PeminjamanController::class, 'batal'])->name('peminjaman.batal');
+        Route::post('/peminjaman/{peminjaman}/selesai', [Admin\PeminjamanController::class, 'selesai'])->name('peminjaman.selesai');
+        Route::post('/peminjaman/{peminjaman}/tidak-hadir', [Admin\PeminjamanController::class, 'tidakHadir'])->name('peminjaman.tidak-hadir');
+
+        Route::get('/jasa', [Admin\PesananJasaController::class, 'index'])->name('jasa.index');
+        Route::get('/jasa/ekspor', [Admin\PesananJasaController::class, 'ekspor'])->name('jasa.ekspor');
+        Route::get('/jasa/{pesanan}', [Admin\PesananJasaController::class, 'show'])->name('jasa.show');
+        Route::post('/jasa/{pesanan}/setujui', [Admin\PesananJasaController::class, 'setujui'])->name('jasa.setujui');
+        Route::post('/jasa/{pesanan}/tolak', [Admin\PesananJasaController::class, 'tolak'])->name('jasa.tolak');
+        Route::post('/jasa/{pesanan}/mulai', [Admin\PesananJasaController::class, 'mulai'])->name('jasa.mulai');
+        Route::post('/jasa/{pesanan}/jadwal', [Admin\PesananJasaController::class, 'jadwal'])->name('jasa.jadwal');
+        Route::post('/jasa/{pesanan}/selesai', [Admin\PesananJasaController::class, 'selesai'])->name('jasa.selesai');
+        Route::post('/jasa/{pesanan}/batal', [Admin\PesananJasaController::class, 'batal'])->name('jasa.batal');
+
+        Route::resource('layanan', Admin\LayananController::class)->except('show')->parameters(['layanan' => 'jasa']);
+        Route::resource('ruangan', Admin\RuanganController::class)->except('show');
+        Route::delete('/ruangan/{ruangan}/foto/{foto}', [Admin\RuanganController::class, 'hapusFoto'])->name('ruangan.foto.destroy');
+        Route::resource('jadwal-tutup', Admin\JadwalTutupController::class)->except(['show', 'create', 'edit'])->parameters(['jadwal-tutup' => 'jadwalTutup']);
+        Route::resource('tutorial', Admin\TutorialController::class)->except('show');
+
+        Route::get('/pengguna', [Admin\PenggunaController::class, 'index'])->name('pengguna.index');
+        Route::post('/pengguna', [Admin\PenggunaController::class, 'store'])->name('pengguna.store');
+        Route::put('/pengguna/{user}', [Admin\PenggunaController::class, 'update'])->name('pengguna.update');
+        Route::post('/pengguna/{user}/status', [Admin\PenggunaController::class, 'status'])->name('pengguna.status');
+
+        Route::get('/pengaturan', [Admin\PengaturanController::class, 'edit'])->name('pengaturan.edit');
+        Route::put('/pengaturan', [Admin\PengaturanController::class, 'update'])->name('pengaturan.update');
+
+        Route::get('/log-aktivitas', [Admin\LogAktivitasController::class, 'index'])->name('log.index');
     });
-
-    // ALL ROLE
-    Route::get('/lihat_harga_sewa_studio', [PesananJadwalStudioController::class, 'lihat_harga_studio']);
-
-    // RATING STUDIOSS
-    Route::post('/beri_rating_studio/{id}', [UserJadwalStudioController::class, 'beri_rating_studio']);
-
-    // JADWAL STUDIO
-    Route::post('/add_pesanan_jadwal_studio', [PesananJadwalStudioController::class, 'store']);
-    Route::post('/showById_pesanan_jadwal_studio/{id}', [PesananJadwalStudioController::class, 'show']);
-    Route::post('/edit_pesanan_jadwal_studio/{id}', [PesananJadwalStudioController::class, 'update']);
-    Route::delete('/hapus_pesanan_jadwal_studio/{id}', [PesananJadwalStudioController::class, 'destroy']);
-    Route::post('/bayar_studio_musik', [PesananJadwalStudioController::class, 'bayar_studio_musik']);
-    Route::post('/cek_tanggal_kosong', [PesananJadwalStudioController::class, 'cek_tanggal_kosong']);
-    Route::post('/data_cek_tanggal_kosong', [PesananJadwalStudioController::class, 'data_cek_tanggal_kosong']);
-    // Upload kondisi ruangan
-    Route::post('/upload_img_kondisi_awal', [PesananJadwalStudioController::class, 'upload_img_kondisi_awal']);
-    Route::post('/simpan_img_kondisi_ruangan/{id}', [PesananJadwalStudioController::class, 'simpan_img_kondisi_ruangan']);
-
-    // PESANAN JASA MUSIK
-    Route::post('/add_pesanan_jasa_musik', [PesananJasaMusikController::class, 'store']);
-    Route::post('/showById_pesanan_jasa_musik/{id}', [PesananJasaMusikController::class, 'show']);
-    Route::get('/informasi_pesanan_jasa_musik/{id}', [PesananJasaMusikController::class, 'informasi_pesanan_jasa_musik']);
-    Route::get('/download_file_pesanan/{filename}', [PesananJasaMusikController::class, 'download_file_pesanan_jasa_musik']);
-    Route::post('/edit_pesanan_jasa_musik/{id}', [PesananJasaMusikController::class, 'update']);
-    Route::delete('/hapus_pesanan_jasa_musik/{id}', [PesananJasaMusikController::class, 'destroy']);
-    Route::post('/select_paket_jasa/{id}', [PesananJasaMusikController::class, 'select_paket_jasa']);
-
-    // LIST DATA RUANGAN
-    Route::get('/list_data_ruangan', [DataRuanganController::class, 'list_data_ruangan']);
-
-    // BAYARAN JADWAL
-    Route::get('/get_snap_token', [UserJadwalStudioController::class, 'get_snap_token']);
-    Route::post('/pembayaran_studio_sukses', [UserJadwalStudioController::class, 'pembayaran_studio_sukses']);
-    Route::post('/pengembalian_ruangan', [UserJadwalStudioController::class, 'pengembalian_ruangan']);
-
-    // BAYARAN JASA MUSIK
-    Route::get('/get_snap_token_jasa', [UserPesananJasaMusikController::class, 'get_snap_token']);
-    Route::post('/pembayaran_jasa_sukses', [UserPesananJasaMusikController::class, 'pembayaran_jasa_sukses']);
-
-    // TUTORIAL PENGGUNAAN ALAT
-    Route::get('/tutorial_penggunaan_alat', [TutorialPenggunaanAlatController::class, 'index_user']);
-    Route::get('/detail_penggunaan_alat/{id}', [TutorialPenggunaanAlatController::class, 'detail_penggunaan_alat']);
-    Route::post('/fetch_data_tutorial', [TutorialPenggunaanAlatController::class, 'data_index']);
 });
