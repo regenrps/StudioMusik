@@ -15,11 +15,11 @@ return [
     'nama' => env('STUDIO_NAMA', 'Studio Musik ITERA'),
     'singkatan' => 'SMI',
     'lokasi' => 'Gedung D Lantai 3, Institut Teknologi Sumatera',
-    'maps_url' => env('STUDIO_MAPS_URL', 'https://www.google.com/maps/search/?api=1&query=Institut+Teknologi+Sumatera'),
+    'maps_url' => env('STUDIO_MAPS_URL', 'https://maps.app.goo.gl/83vvmsvktTwXoemw8'),
 
     'kontak' => [
         'email' => env('STUDIO_EMAIL', 'musikitera@gmail.com'),
-        'whatsapp' => env('STUDIO_WHATSAPP', '6289505177202'),
+        'whatsapp' => env('STUDIO_WHATSAPP', '6281271543205'),
         // Username Instagram tanpa "@"; dikosongkan = tidak ditampilkan
         'instagram' => env('STUDIO_INSTAGRAM', ''),
     ],
