@@ -137,6 +137,8 @@ php artisan serve
 > **Error `SQLSTATE[HY000] [2002] No connection could be made…`** berarti MySQL belum berjalan. Di Laragon klik **Start All** (atau jalankan Docker seperti di atas). Pastikan juga `DB_*` di `.env` cocok.
 >
 > **Unggahan audio/hasil gagal ("gagal diunggah")** berarti batas PHP terlalu kecil. Naikkan `upload_max_filesize=110M` dan `post_max_size=120M` di `php.ini` Laragon (Menu → PHP → php.ini). Konfigurasi Docker sudah mengaturnya.
+>
+> **Tampilan berantakan (tanpa CSS) saat dibuka lewat port forwarding VS Code/devtunnels/ngrok**, dan Chrome meminta izin "akses aplikasi lain di perangkat ini": tunnel mengirim domain asli lewat header `X-Forwarded-*`, dan Laravel baru membacanya bila `TRUSTED_PROXIES=*` diisi di `.env`. Docker sudah mengaturnya secara bawaan. Agar tautan di email juga memakai domain tunnel, isi `APP_URL` (atau `DOCKER_APP_URL`) dengan URL tunnel tersebut.
 
 Akun demo dari `DemoSeeder` memakai kata sandi `Studio123` untuk semuanya: `admin@demo.test`, `k3l@demo.test`, dan `mahasiswa@demo.test`.
 

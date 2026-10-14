@@ -52,7 +52,10 @@ x-env: &env
   MAIL_PASSWORD: ""
   MAIL_FROM_ADDRESS: "musikitera@gmail.com"
   STUDIO_SINKRON_VIA_REQUEST: "false"
-  TRUSTED_PROXIES: "${DOCKER_TRUSTED_PROXIES:-}"
+  # "*" = percayai header X-Forwarded-* dari peer langsung (port forwarding
+  # VS Code/devtunnels, ngrok). Aman karena port hanya terikat ke 127.0.0.1.
+  # Kosongkan bila DOCKER_APP_BIND=0.0.0.0 tanpa proxy di depannya.
+  TRUSTED_PROXIES: "${DOCKER_TRUSTED_PROXIES:-*}"
   CSP_MODE: "${DOCKER_CSP_MODE:-enforce}"
 
 services:
