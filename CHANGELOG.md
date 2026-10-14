@@ -3,6 +3,36 @@
 Semua perubahan penting pada proyek ini dicatat di berkas ini.
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/); versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [3.0.0] — 2026-10-14 · Laravel 13 & PHP 8.5
+
+### Peningkatan versi
+- **Laravel 10.50 → 13.36.** Laravel 10 sudah EOL; versi 13 masih menerima patch keamanan. `composer audit` kini bersih, sehingga empat pengecualian advisori Laravel 10 di `composer.json` dihapus.
+- **PHP minimal 8.4** (sebelumnya 8.1). Image Docker memakai PHP 8.5; Laragon mendapat PHP 8.5.11 berdampingan dengan PHP 8.1.
+- **Paket PHP lain:**
+  - PHPUnit 10 → 13;
+  - Carbon 2 → 3;
+  - Collision 7 → 8;
+  - Tinker 2 → 3;
+  - Symfony 6.4 → 8.1.
+- **Frontend:** Vite 6 → 8 (Rolldown) dan laravel-vite-plugin 1 → 3. Tailwind 4.3, Alpine 3.17, dan Chart.js 4.5 sudah versi terbaru.
+- **Docker:**
+  - PHP 8.5 (OPcache kini bawaan inti);
+  - Node 24 LTS untuk build aset;
+  - MySQL 8.0 → 9.7 LTS. Volume lama ditingkatkan bertahap lewat 8.4 LTS, karena lompatan langsung 8.0 → 9.7 tidak didukung MySQL;
+  - Adminer 6.
+- **Paket dihapus:** `laravel/sanctum` (tidak dipakai), `spatie/laravel-ignition` (Laravel 13 punya halaman error sendiri), `laravel/sail` (sudah ada Docker sendiri), dan `guzzlehttp/guzzle` eksplisit (sudah ikut framework).
+
+### Perubahan yang mengikuti Laravel 13
+- Middleware CSRF diganti `PreventRequestForgery`. Selain token, middleware ini juga memverifikasi asal request lewat header `Sec-Fetch-Site`.
+- Konfigurasi `cache.serializable_classes = false` dan `session.serialization = json` mencegah serangan deserialisasi objek bila `APP_KEY` bocor. Karena itu, cache ulasan di beranda kini menyimpan waktu sebagai teks, bukan objek Carbon.
+  - **Dampak:** semua sesi lama tidak berlaku, sehingga pengguna perlu masuk ulang sekali.
+- Opsi SSL MySQL memakai `Pdo\Mysql::ATTR_SSL_CA`, karena `PDO::MYSQL_ATTR_*` sudah usang di PHP 8.5.
+- Struktur aplikasi gaya Laravel 10 (`Kernel`, `Handler`, `RouteServiceProvider`) dipertahankan sesuai rekomendasi panduan upgrade resmi.
+
+### Lainnya
+- Skrip `composer test` (bersihkan cache konfigurasi lalu jalankan pengujian).
+- Seluruh 70 pengujian lulus di PHP 8.5 lokal dan di container, tanpa *deprecation notice*.
+
 ## [2.1.0] — 2026-10-14 · Keamanan, logging, Docker
 
 ### Keamanan

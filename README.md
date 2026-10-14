@@ -13,8 +13,9 @@ Aplikasi web untuk peminjaman Studio Musik ITERA dan pemesanan jasa musik (jingl
 
 ## Teknologi
 
-- **Backend:** Laravel 10 (PHP 8.1+), MySQL 8
-- **Frontend:** Blade components, Tailwind CSS v4, Alpine.js, dan Chart.js, dibangun dengan Vite
+- **Backend:** Laravel 13 (PHP 8.4+, disarankan 8.5), MySQL 8.0+ (Docker: MySQL 9.7 LTS)
+- **Frontend:** Blade components, Tailwind CSS v4, Alpine.js, dan Chart.js, dibangun dengan Vite 8
+- **Pengujian:** PHPUnit 13
 - **Ikon:** Heroicons (`blade-ui-kit/blade-heroicons`)
 - **Font:** Plus Jakarta Sans, di-host sendiri tanpa CDN
 
@@ -77,7 +78,7 @@ Build pertama memakan beberapa menit karena mengunduh image dan dependensi. Sete
 |---|---|---|
 | Aplikasi | http://localhost:8088 | Data demo otomatis. Kata sandi semua akun: `Studio123` |
 | Mailpit | http://localhost:8025 | Semua email notifikasi tertangkap di sini; tidak ada yang benar-benar terkirim |
-| MySQL | `127.0.0.1:3307` | User `studio`, DB `studio_musik` |
+| MySQL 9.7 | `127.0.0.1:3307` | User `studio`, DB `studio_musik` |
 | Adminer | http://localhost:8081 | Opsional, jalankan dengan `docker compose --profile tools up -d` |
 
 Akun demo yang tersedia:
@@ -108,11 +109,17 @@ Variabel `DOCKER_*` dapat diubah lewat shell atau berkas `.env`, misalnya `DOCKE
 
 **Image produksi:**
 ```bash
-docker build --build-arg COMPOSER_DEV=false -t studio-musik-itera:2.1 .
+docker build --build-arg COMPOSER_DEV=false -t studio-musik-itera:3.0 .
 ```
 Jalankan dengan `APP_ENV=production`, `APP_DEBUG=false`, `APP_KEY`, kredensial DB/SMTP sungguhan, dan `TRUSTED_PROXIES` bila berada di balik reverse proxy.
 
 ## Instalasi lokal tanpa Docker (Laragon/XAMPP)
+
+Prasyarat: **PHP ≥ 8.4** (disarankan 8.5) dengan ekstensi `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `gd`, `intl`, `zip`; **Composer ≥ 2.8** (versi lama gagal di PHP 8.5); Node.js ≥ 20.19; MySQL 8.0+.
+
+> **Laragon:** PHP 8.5 tersedia di `C:\laragon\bin\php\php-8.5.11-Win32-vs17-x64`. Aktifkan lewat **Menu → PHP → Version → php-8.5.11**, lalu buka ulang terminal dan cek `php -v`. Perbarui Composer global dengan `composer self-update` dari terminal *Run as administrator*.
+>
+> **Folder OneDrive:** `composer install` bisa gagal dengan pesan *"Could not delete … antivirus or the Windows Search Indexer"* karena OneDrive mengunci berkas yang baru diekstrak. Ulangi perintahnya, atau jeda sinkronisasi OneDrive selama instalasi.
 
 ```bash
 composer install
@@ -209,7 +216,7 @@ Checklist produksi:
 - [ ] Batasi akses SSH dan basis data dari luar; jadwalkan backup DB dan folder `storage/app/private`
 - [ ] Jangan membagikan aplikasi lewat tunnel publik (devtunnels/ngrok) selama `APP_DEBUG=true`: halaman error akan memperlihatkan kode sumber dan path server
 
-> **Catatan versi:** Laravel 10 sudah tidak menerima patch keamanan sejak Februari 2025. Empat advisori yang tersisa sudah dimitigasi dan didokumentasikan di `composer.json` → `config.audit.ignore`. Rekomendasi jangka menengah: naikkan ke Laravel 12/13. Ini memerlukan PHP ≥ 8.2, sehingga versi PHP di Laragon juga perlu dinaikkan; image Docker sudah memakai PHP 8.3.
+> **Catatan versi:** aplikasi memakai Laravel 13, yang masih menerima patch keamanan. `composer audit` tidak menemukan advisori. Jalankan `composer update` dan `npm update` secara berkala, lalu `composer audit` dan `npm audit`.
 
 ## Pengaturan operasional
 

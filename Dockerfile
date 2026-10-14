@@ -1,4 +1,4 @@
-# Image aplikasi Studio Musik ITERA (Laravel 10 + Apache + PHP 8.3).
+# Image aplikasi Studio Musik ITERA (Laravel 13 + Apache + PHP 8.5).
 #   docker compose up -d --build        → lihat README bagian "Docker"
 #
 # Build arg:
@@ -8,7 +8,7 @@
 # ---------------------------------------------------------------------------
 # 1) Aset frontend (Vite + Tailwind)
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS aset
+FROM node:24-alpine AS aset
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -41,7 +41,7 @@ RUN set -eux; \
 # ---------------------------------------------------------------------------
 # 3) Runtime
 # ---------------------------------------------------------------------------
-FROM php:8.3-apache AS app
+FROM php:8.5-apache AS app
 
 ARG UID=1000
 ARG GID=1000
@@ -51,7 +51,8 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         libfreetype6-dev libjpeg62-turbo-dev libpng-dev libwebp-dev libzip-dev libicu-dev unzip; \
     docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
-    docker-php-ext-install -j"$(nproc)" pdo_mysql gd intl zip opcache bcmath exif; \
+    # OPcache sudah menjadi bagian inti PHP sejak 8.5, tidak perlu dipasang.
+    docker-php-ext-install -j"$(nproc)" pdo_mysql gd intl zip bcmath exif; \
     a2enmod rewrite headers; \
     rm -rf /var/lib/apt/lists/*; \
     # Jalankan Apache sebagai www-data pada port 8080 (tanpa root).

@@ -21,6 +21,8 @@ class BerandaController extends Controller
         $layanan = JasaMusik::query()->aktif()->urut()->get();
         $tutorial = TutorialAlat::query()->latest('id_tutorial')->limit(4)->get();
 
+        // Isi cache hanya array & skalar: Laravel 13 menolak unserialize objek
+        // dari cache (cache.serializable_classes = false), termasuk Carbon.
         $ulasan = Cache::remember('beranda:ulasan', now()->addMinutes(10), function () {
             $studio = Peminjaman::query()->with('user:id_user,username', 'ruangan:id_ruangan,nama_ruangan')
                 ->whereNotNull('review')->where('rating', '>=', 4)->latest('diulas_at')->limit(6)->get()
@@ -29,7 +31,7 @@ class BerandaController extends Controller
                     'jenis' => 'Peminjaman '.($p->ruangan?->nama_ruangan ?? 'Studio'),
                     'rating' => $p->rating,
                     'teks' => $p->review,
-                    'waktu' => $p->diulas_at ?? $p->updated_at,
+                    'waktu' => ($p->diulas_at ?? $p->updated_at)?->toIso8601String(),
                 ]);
 
             $jasa = PesananJasa::query()->with('user:id_user,username', 'jasa:id_jasa_musik,nama_jenis_jasa')
@@ -39,7 +41,7 @@ class BerandaController extends Controller
                     'jenis' => 'Jasa '.($p->jasa?->nama_jenis_jasa ?? 'Musik'),
                     'rating' => $p->rating,
                     'teks' => $p->review,
-                    'waktu' => $p->diulas_at ?? $p->updated_at,
+                    'waktu' => ($p->diulas_at ?? $p->updated_at)?->toIso8601String(),
                 ]);
 
             return $studio->concat($jasa)->sortByDesc('waktu')->take(6)->values()->all();

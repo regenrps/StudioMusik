@@ -108,4 +108,17 @@ return [
 
     'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_cache_'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Serializable Classes
+    |--------------------------------------------------------------------------
+    |
+    | Kelas yang boleh di-unserialize dari cache. `false` = tidak ada objek
+    | sama sekali, mencegah serangan gadget chain bila APP_KEY bocor. Simpan
+    | hanya array/skalar di cache (lihat BerandaController).
+    |
+    */
+
+    'serializable_classes' => false,
+
 ];

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Studio Musik ITERA: a Laravel 10 (PHP 8.1+) + MySQL 8 web app for booking a campus music studio and ordering music services (jingle, aransemen, minus one). UI is server-rendered Blade components + Tailwind v4 + Alpine.js via Vite. All UI text, domain names (models, routes, variables), and commit messages are in **Indonesian**; keep that convention.
+Studio Musik ITERA: a Laravel 13 (PHP 8.4+, PHPUnit 13) + MySQL 8.0+ web app for booking a campus music studio and ordering music services (jingle, aransemen, minus one). UI is server-rendered Blade components + Tailwind v4 + Alpine.js via Vite. All UI text, domain names (models, routes, variables), and commit messages are in **Indonesian**; keep that convention.
 
 ## Commands
 
@@ -83,5 +83,9 @@ Redirect targets built from user input must go through the `tujuan_aman()` helpe
 ## Environment notes
 
 - Windows + Git Bash: pass `MSYS_NO_PATHCONV=1` when giving URL paths like `/jadwal` to CLI tools, or they get rewritten to Windows paths.
-- Laravel 10 is EOL. `composer.json` → `config.audit.ignore` documents four accepted, mitigated framework advisories. Composer ≥2.9 blocks installs without them, so don't remove the entries without upgrading the framework.
+- Upgraded 10 → 13 keeping the Laravel 10-style structure (`app/Http/Kernel.php`, `app/Console/Kernel.php`, `App\Exceptions\Handler`, `RouteServiceProvider`, full `config/*`), as the official upgrade guide recommends. Register middleware/schedules/exception handling there, not in `bootstrap/app.php`. Env names follow the old config files (`CACHE_DRIVER`, not `CACHE_STORE`).
+- Laravel 13 hardening is on: `cache.serializable_classes = false` and `session.serialization = json`. Cache and session values must be arrays/scalars. Objects (Carbon, models, collections) come back broken from a file/DB cache hit, and tests won't catch it because they use the array store.
+- The CSRF middleware is `App\Http\Middleware\PreventRequestForgery` (Laravel 13 rename of `VerifyCsrfToken`). It also checks `Sec-Fetch-Site`.
+- Carbon 3: `diffIn*()` returns signed floats. Pass the earlier date as the receiver, or wrap in `abs()`/`(int)`.
+- The repo lives in OneDrive. `composer install` can fail with "Could not delete … antivirus or the Windows Search Indexer" because of file locks. Retry, or install into a temp dir outside OneDrive and move `vendor/` in. Laragon's PHP 8.5 is at `C:\laragon\bin\php\php-8.5.11-Win32-vs17-x64\php.exe`. Composer < 2.8 breaks on PHP 8.5.
 - Local `.env` may point MAIL to real Gmail SMTP. Use `MAIL_MAILER=log` (or Docker's Mailpit) when testing flows that notify.
