@@ -87,7 +87,8 @@ if (! function_exists('konten')) {
 
         if (preg_match('/<\s*(p|ol|ul|li|strong|em|h[1-6]|br|figure|div)\b/i', $teks)) {
             $bersih = strip_tags($teks, '<p><br><strong><b><em><i><u><ol><ul><li><h2><h3><h4><blockquote>');
-            $bersih = preg_replace('/<(\w+)(?:\s[^>]*)?>/', '<$1>', $bersih);
+            // Buang SEMUA atribut, termasuk bentuk tanpa spasi seperti <p/onclick=...>.
+            $bersih = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*>/i', '<$1>', $bersih);
 
             return new HtmlString($bersih);
         }
@@ -95,7 +96,37 @@ if (! function_exists('konten')) {
         return new HtmlString(Str::markdown($teks, [
             'html_input' => 'escape',
             'allow_unsafe_links' => false,
+            'max_nesting_level' => 20,
         ]));
+    }
+}
+
+if (! function_exists('tujuan_aman')) {
+    /**
+     * Kembalikan $url hanya jika menuju aplikasi ini sendiri (mencegah open
+     * redirect, termasuk trik "http://domain-kita.evil.com" dan "//evil.com").
+     */
+    function tujuan_aman(mixed $url, string $cadangan): string
+    {
+        if (! is_string($url) || $url === '' || preg_match('/[\x00-\x1F\\\\]/', $url)) {
+            return $cadangan;
+        }
+
+        // Path relatif aman ("/akun"), tetapi bukan protocol-relative ("//evil.com").
+        if (str_starts_with($url, '/') && ! str_starts_with($url, '//')) {
+            return $url;
+        }
+
+        $bagian = parse_url($url);
+        $hostAplikasi = parse_url(url('/'), PHP_URL_HOST);
+
+        $aman = is_array($bagian)
+            && in_array(strtolower($bagian['scheme'] ?? ''), ['http', 'https'], true)
+            && isset($bagian['host'])
+            && strcasecmp($bagian['host'], (string) $hostAplikasi) === 0
+            && ! isset($bagian['user']);
+
+        return $aman ? $url : $cadangan;
     }
 }
 

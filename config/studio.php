@@ -63,6 +63,13 @@ return [
     // request web bila scheduler tidak tersedia. Matikan jika cron sudah aktif.
     'sinkron_via_request' => env('STUDIO_SINKRON_VIA_REQUEST', true),
 
+    // Content-Security-Policy: enforce (bawaan) | report (hanya laporkan) | off
+    'csp_mode' => env('CSP_MODE', 'enforce'),
+
+    // Privasi: hapus foto KTM/KTP jaminan sekian hari setelah peminjaman
+    // berakhir (selesai/ditolak/dibatalkan/kedaluwarsa/tidak hadir). 0 = simpan.
+    'retensi_jaminan_hari' => (int) env('STUDIO_RETENSI_JAMINAN_HARI', 30),
+
     'upload' => [
         'gambar_maks_kb' => 5120,
         'audio_maks_kb' => 20480,

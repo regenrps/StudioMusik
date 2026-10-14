@@ -46,14 +46,8 @@ class NotifikasiController extends Controller
         $notifikasi = $request->user()->notifications()->whereKey($id)->firstOrFail();
         $notifikasi->markAsRead();
 
-        $url = $notifikasi->data['url'] ?? null;
-
         // Hanya izinkan tujuan internal.
-        if (! $url || ! str_starts_with($url, url('/'))) {
-            return redirect()->route('notifikasi.index');
-        }
-
-        return redirect()->to($url);
+        return redirect()->to(tujuan_aman($notifikasi->data['url'] ?? null, route('notifikasi.index')));
     }
 
     public function bacaSemua(Request $request): RedirectResponse|JsonResponse

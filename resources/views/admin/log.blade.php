@@ -9,12 +9,28 @@
     };
 @endphp
 <x-layouts.app title="Log Aktivitas">
-    <x-page-header title="Log aktivitas" description="Jejak audit seluruh tindakan penting di sistem." />
+    <x-page-header title="Log aktivitas" description="Jejak audit seluruh tindakan penting di sistem. Log teknis (akses HTTP & keamanan) tersimpan di storage/logs.">
+        <x-button :href="route('admin.log.ekspor', request()->query())" variant="secondary" icon="heroicon-o-arrow-down-tray">Ekspor CSV</x-button>
+    </x-page-header>
+
+    @if ($gagalMasuk24Jam >= 10)
+        <x-alert tone="warning" title="Banyak percobaan masuk gagal" class="mb-4">
+            {{ $gagalMasuk24Jam }} percobaan masuk gagal dalam 24 jam terakhir.
+            <a href="{{ route('admin.log.index', ['aksi' => 'gagal_masuk']) }}" class="font-semibold underline">Lihat detail</a> untuk memeriksa kemungkinan serangan tebak kata sandi.
+        </x-alert>
+    @endif
+
+    <x-tabs class="mb-4" :items="[
+        ['label' => 'Semua', 'href' => route('admin.log.index', array_filter(['q' => $filter['q'] ?: null, 'dari' => $filter['dari'], 'sampai' => $filter['sampai']])), 'aktif' => ! $filter['kategori'], 'jumlah' => null],
+        ['label' => 'Keamanan', 'href' => route('admin.log.index', array_filter(['kategori' => 'keamanan', 'q' => $filter['q'] ?: null, 'dari' => $filter['dari'], 'sampai' => $filter['sampai']])), 'aktif' => $filter['kategori'] === 'keamanan', 'jumlah' => null],
+        ['label' => 'Data & operasional', 'href' => route('admin.log.index', array_filter(['kategori' => 'data', 'q' => $filter['q'] ?: null, 'dari' => $filter['dari'], 'sampai' => $filter['sampai']])), 'aktif' => $filter['kategori'] === 'data', 'jumlah' => null],
+    ]" />
 
     <form method="GET" class="card mb-4 grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_200px_160px_160px_auto]">
+        @if ($filter['kategori'])<input type="hidden" name="kategori" value="{{ $filter['kategori'] }}">@endif
         <div class="relative sm:col-span-2 lg:col-span-1">
             <x-heroicon-o-magnifying-glass class="pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2 text-zinc-400" />
-            <input type="search" name="q" value="{{ $filter['q'] }}" placeholder="Cari deskripsi atau nama pengguna…" class="input pl-11" aria-label="Cari">
+            <input type="search" name="q" value="{{ $filter['q'] }}" placeholder="Cari deskripsi, nama pengguna, atau IP…" class="input pl-11" aria-label="Cari">
         </div>
         <select name="aksi" class="input" aria-label="Jenis aksi">
             <option value="">Semua aksi</option>

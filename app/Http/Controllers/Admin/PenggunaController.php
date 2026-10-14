@@ -48,11 +48,11 @@ class PenggunaController extends Controller
 
         $data = $request->validateWithBag('tambah', [
             'username' => ['required', 'string', 'min:3', 'max:80'],
-            'email' => ['required', 'email', 'max:120', 'unique:users,email'],
+            'email' => ['required', 'email:rfc,filter', 'max:120', 'unique:users,email'],
             'no_wa' => ['required', 'string', 'regex:/^(\+?62|0)8[0-9]{7,12}$/'],
             'nim_nip' => ['nullable', 'string', 'max:30'],
             'user_role' => ['required', Rule::enum(Role::class)],
-            'password' => ['required', Password::min(8)->letters()->numbers()],
+            'password' => ['required', Password::defaults()],
         ], ['no_wa.regex' => 'Nomor WhatsApp tidak valid. Contoh: 081234567890.']);
 
         $user = User::create([
@@ -71,7 +71,7 @@ class PenggunaController extends Controller
     {
         $data = $request->validate([
             'user_role' => ['required', Rule::enum(Role::class)],
-            'password' => ['nullable', Password::min(8)->letters()->numbers()],
+            'password' => ['nullable', Password::defaults()],
         ]);
 
         if ($user->is($request->user()) && $data['user_role'] !== Role::Admin->value) {

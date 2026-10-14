@@ -55,6 +55,7 @@ class TutorialController extends Controller
             Berkas::hapus($lama, Berkas::PUBLIK);
         }
         $tutorial->save();
+        LogAktivitas::catat(null, 'tutorial_diubah', 'Memperbarui tutorial '.$tutorial->nama_alat);
 
         return redirect()->route('admin.tutorial.index')->with('toast', ['type' => 'success', 'message' => 'Tutorial diperbarui.']);
     }

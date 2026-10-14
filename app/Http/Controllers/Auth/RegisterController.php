@@ -27,9 +27,9 @@ class RegisterController extends Controller
         $data = $request->validate([
             'username' => ['required', 'string', 'min:3', 'max:80'],
             'nim_nip' => ['nullable', 'string', 'max:30', 'regex:/^[0-9A-Za-z.\-]+$/'],
-            'email' => ['required', 'email:rfc', 'max:120', 'unique:users,email'],
+            'email' => ['required', 'email:rfc,filter', 'max:120', 'unique:users,email'],
             'no_wa' => ['required', 'string', 'regex:/^(\+?62|0)8[0-9]{7,12}$/'],
-            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'confirmed', Password::defaults()],
             'setuju' => ['accepted'],
         ], [
             'no_wa.regex' => 'Nomor WhatsApp tidak valid. Contoh: 081234567890.',

@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::get('/', [BerandaController::class, 'index'])->name('beranda');
 Route::get('/jadwal', [JadwalPublikController::class, 'index'])->name('jadwal');
-Route::get('/jadwal/data', [JadwalPublikController::class, 'data'])->name('jadwal.data');
+Route::get('/jadwal/data', [JadwalPublikController::class, 'data'])->middleware('throttle:120,1')->name('jadwal.data');
 Route::get('/ruangan/{ruangan}', [KatalogController::class, 'ruangan'])->name('ruangan.show');
 Route::get('/layanan', [KatalogController::class, 'layanan'])->name('layanan.index');
 Route::get('/layanan/{jasa}', [KatalogController::class, 'layananShow'])->name('layanan.show');
@@ -61,7 +61,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/profil/password', [ProfilController::class, 'password'])->name('profil.password');
 
     Route::get('/notifikasi', [NotifikasiController::class, 'index'])->name('notifikasi.index');
-    Route::get('/notifikasi/terbaru', [NotifikasiController::class, 'terbaru'])->name('notifikasi.terbaru');
+    Route::get('/notifikasi/terbaru', [NotifikasiController::class, 'terbaru'])->middleware('throttle:60,1')->name('notifikasi.terbaru');
     Route::post('/notifikasi/baca-semua', [NotifikasiController::class, 'bacaSemua'])->name('notifikasi.baca-semua');
     Route::get('/notifikasi/{id}', [NotifikasiController::class, 'buka'])->name('notifikasi.buka');
 
@@ -150,5 +150,6 @@ Route::middleware(['auth', 'role:admin,k3l'])->prefix('admin')->name('admin.')->
         Route::put('/pengaturan', [Admin\PengaturanController::class, 'update'])->name('pengaturan.update');
 
         Route::get('/log-aktivitas', [Admin\LogAktivitasController::class, 'index'])->name('log.index');
+        Route::get('/log-aktivitas/ekspor', [Admin\LogAktivitasController::class, 'ekspor'])->name('log.ekspor');
     });
 });

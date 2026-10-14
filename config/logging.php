@@ -31,6 +31,12 @@ return [
     |
     */
 
+    // Catat setiap request ke kanal `akses` (lihat App\Http\Middleware\CatatAkses).
+    'akses_aktif' => (bool) env('LOG_AKSES', true),
+
+    // Retensi jejak audit di tabel log_aktivitas (hari). 0 = simpan selamanya.
+    'retensi_audit_hari' => (int) env('LOG_RETENSI_AUDIT_HARI', 365),
+
     'deprecations' => [
         'channel' => env('LOG_DEPRECATIONS_CHANNEL', 'null'),
         'trace' => false,
@@ -52,10 +58,32 @@ return [
     */
 
     'channels' => [
+        // Kanal utama. Docker: LOG_STACK=daily,stderr agar terlihat di `docker compose logs`.
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
+            'channels' => array_filter(explode(',', (string) env('LOG_STACK', 'daily'))),
             'ignore_exceptions' => false,
+        ],
+
+        // Kejadian keamanan: login/gagal login/keluar, reset sandi, akses
+        // ditolak (403), CSRF (419), rate limit (429), akses berkas privat.
+        'keamanan' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/keamanan.log'),
+            'level' => 'info',
+            'days' => (int) env('LOG_KEAMANAN_DAYS', 90),
+            'formatter' => Monolog\Formatter\JsonFormatter::class,
+            'replace_placeholders' => true,
+        ],
+
+        // Log akses HTTP (satu baris JSON per request) untuk audit & debugging.
+        'akses' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/akses.log'),
+            'level' => 'info',
+            'days' => (int) env('LOG_AKSES_DAYS', 30),
+            'formatter' => Monolog\Formatter\JsonFormatter::class,
+            'replace_placeholders' => true,
         ],
 
         'single' => [
@@ -69,7 +97,7 @@ return [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
-            'days' => 14,
+            'days' => (int) env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
         ],
 

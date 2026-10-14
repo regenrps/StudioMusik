@@ -111,7 +111,7 @@
                                     <img src="{{ route('berkas.peminjaman', [$p, $jenis]) }}" alt="{{ $label }}" loading="lazy" class="aspect-[4/3] w-full object-cover transition group-hover:scale-105">
                                 </a>
                             @else
-                                <div class="grid aspect-[4/3] place-items-center rounded-xl border-2 border-dashed border-zinc-200 text-xs text-zinc-400 dark:border-zinc-700">Belum ada</div>
+                                <div class="grid aspect-[4/3] place-items-center rounded-xl border-2 border-dashed border-zinc-200 p-2 text-center text-xs text-zinc-400 dark:border-zinc-700">{{ $jenis === 'jaminan' && $p->status->isFinal() ? 'Dihapus otomatis (retensi privasi)' : 'Belum ada' }}</div>
                             @endif
                             <figcaption class="mt-1.5 text-xs font-medium text-zinc-500">{{ $label }}</figcaption>
                         </figure>

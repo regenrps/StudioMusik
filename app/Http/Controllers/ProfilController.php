@@ -35,7 +35,7 @@ class ProfilController extends Controller
         $data = $request->validate([
             'username' => ['required', 'string', 'min:3', 'max:80'],
             'nim_nip' => ['nullable', 'string', 'max:30', 'regex:/^[0-9A-Za-z.\-]+$/'],
-            'email' => ['required', 'email:rfc', 'max:120', Rule::unique('users', 'email')->ignore($user->getKey(), 'id_user')],
+            'email' => ['required', 'email:rfc,filter', 'max:120', Rule::unique('users', 'email')->ignore($user->getKey(), 'id_user')],
             'no_wa' => ['required', 'string', 'regex:/^(\+?62|0)8[0-9]{7,12}$/'],
         ], ['no_wa.regex' => 'Nomor WhatsApp tidak valid. Contoh: 081234567890.']);
 
@@ -57,7 +57,7 @@ class ProfilController extends Controller
     {
         $request->validateWithBag('password', [
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', 'different:current_password', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'confirmed', 'different:current_password', Password::defaults()],
         ]);
 
         $request->user()->update(['password' => $request->input('password')]);

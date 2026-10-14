@@ -63,7 +63,56 @@ Pengecekan bentrok dilakukan **di server** dalam transaksi database, dengan *row
 
 Berkas privat hanya dapat diakses lewat `/berkas/...` setelah pemeriksaan *policy*. Foto dari kamera ponsel diperkecil otomatis di browser sebelum diunggah.
 
-## Instalasi lokal (Laragon/XAMPP)
+## Menjalankan dengan Docker (paling mudah)
+
+Hanya butuh [Docker Desktop](https://www.docker.com/products/docker-desktop/). PHP, MySQL, Node, dan Laragon tidak perlu dipasang.
+
+```bash
+docker compose up -d --build
+```
+
+Build pertama memakan beberapa menit karena mengunduh image dan dependensi. Setelah semua container berstatus *healthy*:
+
+| Layanan | Alamat | Keterangan |
+|---|---|---|
+| Aplikasi | http://localhost:8088 | Data demo otomatis. Kata sandi semua akun: `Studio123` |
+| Mailpit | http://localhost:8025 | Semua email notifikasi tertangkap di sini; tidak ada yang benar-benar terkirim |
+| MySQL | `127.0.0.1:3307` | User `studio`, DB `studio_musik` |
+| Adminer | http://localhost:8081 | Opsional, jalankan dengan `docker compose --profile tools up -d` |
+
+Akun demo yang tersedia:
+- `admin@demo.test` — Admin
+- `k3l@demo.test` — K3L
+- `mahasiswa@demo.test` — Peminjam
+
+Perintah sehari-hari:
+
+```bash
+docker compose ps                                 # status container
+docker compose logs -f app                        # log aplikasi (juga tersimpan di volume storage)
+docker compose exec app php artisan test          # jalankan pengujian di dalam container
+docker compose exec app php artisan tinker
+docker compose down                               # hentikan (data tetap tersimpan di volume)
+docker compose down -v                            # hentikan DAN hapus semua data (DB, unggahan, log)
+docker compose up -d --build                      # setelah mengubah kode
+```
+
+Container yang berjalan:
+- `app`: Apache + PHP. Menjalankan migrasi otomatis saat start.
+- `queue`: worker email/notifikasi.
+- `scheduler`: menjalankan `studio:sinkron-status` setiap 5 menit, serta retensi KTM dan log setiap hari.
+- `mysql`
+- `mailpit`
+
+Variabel `DOCKER_*` dapat diubah lewat shell atau berkas `.env`, misalnya `DOCKER_APP_PORT=9000` (bawaan 8088, agar tidak bentrok dengan `php artisan serve` di 8000) atau `DOCKER_SEED_DEMO=false`. Daftar lengkapnya ada di `docker-compose.yml`. Untuk membuka aplikasi dari HP di jaringan yang sama, set `DOCKER_APP_BIND=0.0.0.0` dan `DOCKER_APP_URL=http://<IP-laptop>:8088`.
+
+**Image produksi:**
+```bash
+docker build --build-arg COMPOSER_DEV=false -t studio-musik-itera:2.1 .
+```
+Jalankan dengan `APP_ENV=production`, `APP_DEBUG=false`, `APP_KEY`, kredensial DB/SMTP sungguhan, dan `TRUSTED_PROXIES` bila berada di balik reverse proxy.
+
+## Instalasi lokal tanpa Docker (Laragon/XAMPP)
 
 ```bash
 composer install
@@ -78,11 +127,15 @@ npm run build                             # atau `npm run dev` saat mengembangka
 php artisan serve
 ```
 
+> **Error `SQLSTATE[HY000] [2002] No connection could be made…`** berarti MySQL belum berjalan. Di Laragon klik **Start All** (atau jalankan Docker seperti di atas). Pastikan juga `DB_*` di `.env` cocok.
+>
+> **Unggahan audio/hasil gagal ("gagal diunggah")** berarti batas PHP terlalu kecil. Naikkan `upload_max_filesize=110M` dan `post_max_size=120M` di `php.ini` Laragon (Menu → PHP → php.ini). Konfigurasi Docker sudah mengaturnya.
+
 Akun demo dari `DemoSeeder` memakai kata sandi `Studio123` untuk semuanya: `admin@demo.test`, `k3l@demo.test`, dan `mahasiswa@demo.test`.
 
 ### Memperbarui dari versi lama
 
-Migrasi `2026_10_12_*` mengonversi data lama secara otomatis. Kode status P/Y/N/X diubah menjadi status eksplisit, tabel `detail_pesanan_jadwal_studio` digabung ke tabel utama, dan berkas sensitif dipindahkan ke disk privat. **Backup database dan folder `public/storage` sebelum menjalankan `php artisan migrate`.** Semua migrasi memiliki `down()`, sehingga bisa dikembalikan dengan `php artisan migrate:rollback --step=7`.
+Migrasi `2026_10_12_*` mengonversi data lama secara otomatis. Kode status P/Y/N/X diubah menjadi status eksplisit, tabel `detail_pesanan_jadwal_studio` digabung ke tabel utama, dan berkas sensitif dipindahkan ke disk privat. **Backup database dan folder `public/storage` sebelum menjalankan `php artisan migrate`.** Semua migrasi memiliki `down()`, sehingga bisa dikembalikan dengan `php artisan migrate:rollback --step=7`. Riwayat perubahan lengkap ada di [CHANGELOG.md](CHANGELOG.md).
 
 ## Produksi
 
@@ -113,14 +166,50 @@ php artisan config:clear   # wajib: konfigurasi yang ter-cache akan mengabaikan 
 php artisan test
 ```
 
-Test suite (57 pengujian) mencakup:
+Test suite (70 pengujian) mencakup:
 - logika ketersediaan: bentrok, jadwal bersambung, akhir pekan, penutupan, jeda pengajuan, dan batas hari;
 - alur peminjaman end-to-end dan alur jasa musik;
 - otorisasi dan akses berkas privat;
 - sinkronisasi otomatis, autentikasi dan *rate limit*;
-- uji asap seluruh halaman.
+- uji asap seluruh halaman;
+- regresi keamanan: unggahan `.php`, open redirect, CSP, CRLF email, formula CSV, sanitasi HTML, dan retensi data.
 
 Pengujian akan **menolak berjalan** jika basis data yang dipakai tidak berakhiran `_test`.
+
+## Logging
+
+| Lokasi | Isi | Retensi |
+|---|---|---|
+| Menu **Log Aktivitas** (tabel `log_aktivitas`) | Jejak audit: pengajuan, persetujuan, check-in/out, perubahan data master/pengguna/pengaturan, masuk/keluar/gagal masuk. Ada filter Keamanan dan ekspor CSV | `LOG_RETENSI_AUDIT_HARI` (365) |
+| `storage/logs/laravel-*.log` | Error aplikasi, beserta URL, user, IP, dan `request_id` | `LOG_DAILY_DAYS` (14) |
+| `storage/logs/keamanan-*.log` (JSON) | Login, gagal login, reset sandi, 403/419/429, akses berkas privat (siapa membuka KTM siapa) | `LOG_KEAMANAN_DAYS` (90) |
+| `storage/logs/akses-*.log` (JSON) | Satu baris per request: metode, path, status, durasi, user, IP | `LOG_AKSES_DAYS` (30) |
+
+Setiap respons membawa header `X-Request-Id`. Cari nilainya di semua berkas log untuk menelusuri satu kejadian dari awal sampai akhir.
+
+## Keamanan
+
+Lapisan pertahanan yang terpasang:
+- **Akses & data:**
+  - otorisasi per peran dan per kepemilikan data (Policy);
+  - berkas pribadi di disk privat dan hanya dilayani setelah pemeriksaan;
+  - KTM/KTP dihapus otomatis setelah masa retensi (`STUDIO_RETENSI_JAMINAN_HARI`).
+- **Unggahan:** nama acak dengan daftar putih ekstensi; folder unggahan publik tidak bisa mengeksekusi skrip.
+- **Konsistensi jadwal:** cek bentrok di server dalam transaksi + *row lock*.
+- **Header HTTP:** CSP berbasis nonce, `X-Frame-Options`, HSTS (HTTPS), `no-store` untuk halaman ber-login, TrustHosts.
+- **Serangan umum:** rate limit login/daftar/reset/aksi, perlindungan CSRF, cegah open redirect, sanitasi HTML konten admin, netralisasi formula CSV.
+
+Checklist produksi:
+- [ ] `APP_ENV=production` dan `APP_DEBUG=false`
+- [ ] `APP_URL` memakai `https://`
+- [ ] `SESSION_SECURE_COOKIE=true`
+- [ ] `TRUSTED_PROXIES` diisi IP proxy (jangan `*` bila server dapat diakses langsung)
+- [ ] Ganti kata sandi semua akun bawaan/demo
+- [ ] Jangan menjalankan `DemoSeeder`
+- [ ] Batasi akses SSH dan basis data dari luar; jadwalkan backup DB dan folder `storage/app/private`
+- [ ] Jangan membagikan aplikasi lewat tunnel publik (devtunnels/ngrok) selama `APP_DEBUG=true`: halaman error akan memperlihatkan kode sumber dan path server
+
+> **Catatan versi:** Laravel 10 sudah tidak menerima patch keamanan sejak Februari 2025. Empat advisori yang tersisa sudah dimitigasi dan didokumentasikan di `composer.json` → `config.audit.ignore`. Rekomendasi jangka menengah: naikkan ke Laravel 12/13. Ini memerlukan PHP ≥ 8.2, sehingga versi PHP di Laragon juga perlu dinaikkan; image Docker sudah memakai PHP 8.3.
 
 ## Pengaturan operasional
 

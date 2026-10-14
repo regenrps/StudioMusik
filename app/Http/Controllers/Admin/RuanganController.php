@@ -98,6 +98,7 @@ class RuanganController extends Controller
         abort_unless($foto->id_ruangan === $ruangan->id_ruangan, 404);
         Berkas::hapus($foto->img_ruangan, Berkas::PUBLIK);
         $foto->delete();
+        LogAktivitas::catat($ruangan, 'foto_dihapus', 'Menghapus foto galeri ruangan '.$ruangan->nama_ruangan);
 
         return back()->with('toast', ['type' => 'success', 'message' => 'Foto dihapus.']);
     }

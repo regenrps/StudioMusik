@@ -10,6 +10,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('studio:sinkron-status')->everyFiveMinutes()->withoutOverlapping();
+        $schedule->command('studio:bersihkan-jaminan')->dailyAt('02:00')->withoutOverlapping();
         $schedule->command('queue:prune-failed --hours=168')->daily();
         $schedule->command('model:prune')->daily();
     }

@@ -14,6 +14,15 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var array<class-string, array<int, class-string>>
      */
+    /**
+     * Pencatat kejadian keamanan (masuk, keluar, gagal masuk, reset sandi).
+     *
+     * @var array<int, class-string>
+     */
+    protected $subscribe = [
+        \App\Listeners\CatatKejadianKeamanan::class,
+    ];
+
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,

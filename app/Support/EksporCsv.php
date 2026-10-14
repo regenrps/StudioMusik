@@ -21,9 +21,25 @@ class EksporCsv
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, $header, ';');
             foreach ($baris as $row) {
-                fputcsv($out, array_map(fn ($v) => is_string($v) ? str_replace(["\r\n", "\r"], "\n", $v) : $v, $row), ';');
+                fputcsv($out, array_map([static::class, 'sel'], $row), ';');
             }
             fclose($out);
         }, $namaBerkas, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /**
+     * Netralkan "formula injection": teks dari pengguna yang diawali = + - @
+     * (atau tab/CR) akan dieksekusi Excel sebagai rumus. Diberi awalan
+     * apostrof agar dibaca sebagai teks biasa.
+     */
+    public static function sel(mixed $nilai): mixed
+    {
+        if (! is_string($nilai)) {
+            return $nilai;
+        }
+
+        $nilai = str_replace(["\r\n", "\r"], "\n", $nilai);
+
+        return preg_match('/^[=+\-@\t\r]/', $nilai) ? "'".$nilai : $nilai;
     }
 }

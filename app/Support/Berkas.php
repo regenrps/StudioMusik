@@ -15,12 +15,32 @@ class Berkas
 
     public const PRIVAT = 'private';
 
+    /**
+     * Satu-satunya ekstensi yang boleh dipakai untuk berkas tersimpan.
+     * Ekstensi lain (php, phtml, phar, svg, html, ...) tidak pernah dipakai,
+     * meskipun isi berkas lolos validasi — mencegah unggahan "polyglot"
+     * (mis. JPEG valid bernama shell.php) dieksekusi di folder publik.
+     */
+    public const EKSTENSI_AMAN = ['jpg', 'jpeg', 'png', 'webp', 'mp3', 'wav', 'mp4', 'm4a', 'flac', 'pdf', 'zip'];
+
     public static function simpan(UploadedFile $file, string $folder, string $disk = self::PRIVAT): string
     {
-        $ext = Str::lower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'bin');
-        $nama = now()->format('Ymd').'-'.Str::lower((string) Str::ulid()).'.'.$ext;
+        $nama = now()->format('Ymd').'-'.Str::lower((string) Str::ulid()).'.'.static::ekstensiAman($file);
 
         return Storage::disk($disk)->putFileAs(trim($folder, '/'), $file, $nama);
+    }
+
+    public static function ekstensiAman(UploadedFile $file): string
+    {
+        $klien = Str::lower((string) $file->getClientOriginalExtension());
+        if (in_array($klien, self::EKSTENSI_AMAN, true)) {
+            return $klien;
+        }
+
+        // Nama klien mencurigakan: pakai ekstensi hasil deteksi isi berkas.
+        $terdeteksi = Str::lower((string) $file->guessExtension());
+
+        return in_array($terdeteksi, self::EKSTENSI_AMAN, true) ? $terdeteksi : 'bin';
     }
 
     public static function hapus(?string $path, string $disk = self::PRIVAT): void

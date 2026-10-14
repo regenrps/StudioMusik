@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\LogAktivitas;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,25 +20,25 @@ class LoginController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $kredensial = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
+            'email' => ['required', 'email:rfc,filter', 'max:120'],
+            'password' => ['required', 'string', 'max:255'],
         ]);
 
-        if (! Auth::attempt($kredensial, $request->boolean('ingat'))) {
-            throw ValidationException::withMessages(['email' => __('auth.failed')]);
-        }
+        // Akun nonaktif ditolak tanpa sempat login. Kejadian masuk/gagal masuk
+        // dicatat oleh App\Listeners\CatatKejadianKeamanan.
+        if (! Auth::attemptWhen($kredensial, fn (User $u) => $u->is_active, $request->boolean('ingat'))) {
+            $provider = Auth::getProvider();
+            $user = $provider->retrieveByCredentials(['email' => $kredensial['email']]);
+            $nonaktif = $user && ! $user->is_active && $provider->validateCredentials($user, $kredensial);
 
-        $user = Auth::user();
-        if (! $user->is_active) {
-            Auth::logout();
             throw ValidationException::withMessages([
-                'email' => 'Akun Anda dinonaktifkan. Hubungi admin studio untuk informasi lebih lanjut.',
+                'email' => $nonaktif ? 'Akun Anda dinonaktifkan. Hubungi admin studio untuk informasi lebih lanjut.' : __('auth.failed'),
             ]);
         }
 
         $request->session()->regenerate();
+        $user = Auth::user();
         $user->forceFill(['last_login_at' => now()])->saveQuietly();
-        LogAktivitas::catat($user, 'masuk', 'Masuk ke sistem');
 
         return redirect()->intended($user->homeRoute())
             ->with('toast', ['type' => 'success', 'message' => 'Selamat datang kembali, '.$user->username.'!']);

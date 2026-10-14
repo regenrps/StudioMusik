@@ -15,7 +15,7 @@
     <link rel="icon" href="{{ asset('assets/img/logo-itera.png') }}" type="image/png">
 
     {{-- Terapkan tema sebelum render agar tidak berkedip --}}
-    <script>
+    <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
         (function () {
             try {
                 var t = localStorage.getItem('tema') || 'sistem';

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\LogAktivitas;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +22,7 @@ class PasswordController extends Controller
 
     public function email(Request $request): RedirectResponse
     {
-        $request->validate(['email' => ['required', 'email']]);
+        $request->validate(['email' => ['required', 'email:rfc,filter', 'max:120']]);
 
         try {
             Password::sendResetLink($request->only('email'));
@@ -46,15 +45,14 @@ class PasswordController extends Controller
     {
         $request->validate([
             'token' => ['required'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'confirmed', AturanPassword::min(8)->letters()->numbers()],
+            'email' => ['required', 'email:rfc,filter', 'max:120'],
+            'password' => ['required', 'confirmed', AturanPassword::defaults()],
         ]);
 
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user, string $password) {
                 $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
-                LogAktivitas::catat($user, 'reset_password', 'Mengatur ulang kata sandi', [], $user);
                 event(new PasswordReset($user));
             }
         );

@@ -66,6 +66,14 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "audit": {
+            "ignore": {
+                "PKSA-d5tc-s1qs-h781": "XSS di halaman debug Laravel: hanya aktif bila APP_DEBUG=true; produksi wajib APP_DEBUG=false. Tidak ada patch untuk Laravel 10 (EOL).",
+                "PKSA-m5cs-t1y6-qpcs": "Temporary signed URL path confusion: aplikasi tidak memakai signed URL. Tidak ada patch untuk Laravel 10 (EOL).",
+                "PKSA-3r5d-mb8f-1qw9": "CRLF injection pada aturan email: dimitigasi dengan aturan email:rfc,filter di seluruh input email. Tidak ada patch untuk Laravel 10 (EOL).",
+                "PKSA-mdq4-51ck-6kdq": "CRLF injection pada aturan email (CVE-2026-48019): dimitigasi dengan email:rfc,filter. Tidak ada patch untuk Laravel 10 (EOL)."
+            }
         }
     },
     "minimum-stability": "stable",

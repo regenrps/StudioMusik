@@ -45,6 +45,7 @@ class JadwalTutupController extends Controller
     public function update(Request $request, JadwalTutup $jadwalTutup): RedirectResponse
     {
         $jadwalTutup->update($this->validasi($request));
+        LogAktivitas::catat(null, 'jadwal_tutup_diubah', 'Mengubah penutupan: '.$jadwalTutup->keterangan.' ('.$jadwalTutup->rentang_label.')');
 
         return $this->kembali($jadwalTutup, 'Jadwal penutupan diperbarui.');
     }

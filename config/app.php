@@ -60,6 +60,12 @@ return [
     'asset_url' => env('ASSET_URL'),
 
     /*
+    | Proxy tepercaya (lihat App\Http\Middleware\TrustProxies).
+    | Kosong = tidak ada; "*" = semua; atau daftar IP/CIDR dipisah koma.
+    */
+    'trusted_proxies' => env('TRUSTED_PROXIES', ''),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------

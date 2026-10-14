@@ -211,9 +211,9 @@ class PeminjamanController extends Controller
 
     private function kembali(Request $request, string $pesan): RedirectResponse
     {
-        $tujuan = $request->input('kembali');
-        $redirect = is_string($tujuan) && str_starts_with($tujuan, url('/')) ? redirect()->to($tujuan) : back();
+        $sebelumnya = tujuan_aman(url()->previous(), route('admin.peminjaman.index'));
 
-        return $redirect->with('toast', ['type' => 'success', 'message' => $pesan]);
+        return redirect()->to(tujuan_aman($request->input('kembali'), $sebelumnya))
+            ->with('toast', ['type' => 'success', 'message' => $pesan]);
     }
 }
